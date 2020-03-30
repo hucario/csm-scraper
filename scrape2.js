@@ -118,7 +118,7 @@ var verbose = false;
 
 
 var onPage = 0;
-var maxPage = 5;
+var maxPage = 291;
 var currBookOnPage = 0;
 
 var conlogs = [];
