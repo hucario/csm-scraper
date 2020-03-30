@@ -1,9 +1,23 @@
-"https://www.commonsensemedia.org/book-reviews?sort=field_stars_rating&order=desc&page=0";
+/*
+ *	CommonSenseMedia scraper
+ *	By H
+ *
+ */
+
+/* Config */
+
+var minDelay = 1500;
+var maxDelay = 5000;
 
 
+/* Requires */
+const express = require('express');
+const needle = require('needle'); 
+const cheerio = require('cheerio');
+const socketio = require('socket.io');
 
-let express = require('express');
-let app = express();
+/* Set up express & socketio */
+const app = express();
 var isRoot = (process.getuid && (process.getuid() === 0));
 var port;
 if (isRoot) {
@@ -12,100 +26,90 @@ if (isRoot) {
 	port = process.env.PORT;
 }
 var server = app.listen(port, () => {
-	console.log("Started webserver");
+	log("Started webserver");
 });
-
+const io = socketio.listen(server);
 
 app.set('view engine', 'ejs');
 
+
+/* Routing */
 app.get('/', (req, res) => {
-
-	var stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
-
-  res.render('index', {
-  	status: scraperStatus,
-  	bookCount: books.length,
-  	csvSize: stats,
-  	jsonSize: stats
-  });
+	var stats;
+	if (fs.existsSync(__dirname + '/books.csv')) {
+		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+	} else {
+		stats = "0 Bytes";
+	}
+	res.render('index', {
+		status: scraperStatus,
+		bookCount: books.length + (' ('+(20 - books.length%20)+' left until next save)'),
+		csvSize: stats,
+		jsonSize: stats,
+		logs: conlogs.join('')
+	});
 });
-
-var scraperStatus = "stopped";
 
 app.post('/start', (req, res) => {
 	startScraper();
-	console.log('Started scraper');
+	log('Started scraper');
 	res.send(true);
 });
 app.post('/pause', (req, res) => {
 	pauseScraper();
-	console.log('Paused scraper');
+	log('Paused scraper');
 	res.send(true);
 });
 app.post('/stop', (req, res) => {
 	stopScraper();
-	console.log('Stopped scraper');
+	log('Stopped scraper');
 	res.send(true);
 });
 app.get('/styles.css', (req, res) => {
 	res.sendFile(__dirname + '/control/styles.css');
 });
 app.get('/scraperStatus.svg', (req, res) => {
-	res.sendFile(__dirname + '/control/' + desiredStatus + '.svg');
+	res.sendFile(__dirname + '/control/' + scraperStatus + '.svg');
 });
 app.get('/script.js', (req, res) => {
 	res.sendFile(__dirname + '/control/script.js');
 });
 
+/* Variables */
 
+var startingURL = 'https://www.commonsensemedia.org/book-reviews?sort=field_stars_rating&order=desc&page=';
 
-
-
-
-
-
-
-function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"],f=Math.floor(Math.log(a)/Math.log(c));return parseFloat((a/Math.pow(c,f)).toFixed(d))+" "+e[f]}
-
-
-
-
-const needle = require('needle'); 
-const cheerio = require('cheerio')
+var scraperStatus = "stopped";
+var desiredStatus = "stopped";
 
 var tempbooks = [];
 var books = [];
 
-var minDelay = 1000;
-var maxDelay = 1000;
+var verbose = false;
 
 
+var onPage = 0;
+var maxPage = 5;
+var currBookOnPage = 0;
+
+var conlogs = [];
+
+/* Functions */
+
+function log() {
+	console.log(params);
+	conlogs.push(params.join('')+'<br>');
+}
+
+function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"],f=Math.floor(Math.log(a)/Math.log(c));return parseFloat((a/Math.pow(c,f)).toFixed(d))+" "+e[f]}
 
 
 function chopOffTail(orig,fromlast) {
 	return orig.toString().substring(0,orig.toString().length-fromlast); 
 }
-var startingURL = 'https://www.commonsensemedia.org/book-reviews?sort=field_stars_rating&order=desc&page=';
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
-
-var verbose = false;
-
-for (let e = 2; e < process.argv.length; e++) {
-	if (process.argv[e] == "--verbose") {
-		verbose = true;
-		break;
-	}
-}
-
-if (verbose) {
-	console.log('Verbose mode ON');
-} else {
-	console.log('Verbose mode OFF');
-}
-
-var desiredStatus = "running";
 
 function pauseScraper() {
 	if (scraperStatus == "stopped" || scraperStatus == "paused") {
@@ -126,12 +130,36 @@ function stopScraper() {
 	desiredStatus = "stopped";
 	fs.writeFile('books.csv', "", (err) => {
 	if (err) throw err;
-	console.log('CSV erased');
+		log('Books CSV erased');
+	});
+	fs.writeFile('books.json', '', (err) => {
+		if (err) throw err;
+		log('Books JSON erased');
 	});
 }
 
-var onPage = 0;
-var maxPage = 5;
+function writeToCSV(arr) {
+	let tempString = "";
+	for (let i = 0; i < arr.length; i++) {
+		for (let key in arr[i]) {
+			if (arr[i][key] && arr[i][key].toString().includes(',')) {
+				tempString+='"'+arr[i][key]+'",';
+			} else {
+				tempString+=arr[i][key]+',';
+			}
+		}
+		tempString += '\n';
+	}
+
+	fs.appendFile('books.csv', tempString, (err) => {
+		if (err) throw err;
+		log('Books CSV saved');
+	});
+	fs.writeFile('books.json', JSON.stringify(books), (err) => {
+		if (err) throw err;
+		log('Books JSON saved');
+	});
+}
 
 async function scrapePage(currURL) {
   return new Promise(async (resolve) => {
@@ -143,13 +171,14 @@ async function scrapePage(currURL) {
 		if (verbose) {
 			console.log("GOT "+currURL);
 		}
-		if (res.body.toLowerCase().includes('activism')) { // nah fam
-			resolve();
-			return;
-		}	
 		let cheerThis = cheerio.load(res.body);
 		let currBook = {};
 		currBook.title = cheerThis('.pane-node-title.csm_book').text();
+		if (res.body.toLowerCase().includes('activism')) { // nah fam
+			log('Activism detected, cancelling scraping of '+currBook.title);
+			resolve();
+			return;
+		}	
 		let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1]
 		ageNonParsed = ageNonParsed.substring(0,ageNonParsed.length-4);
 		currBook.ageRating = Number(ageNonParsed);		
@@ -213,7 +242,6 @@ async function scrapePage(currURL) {
 			]
 		]
 		for (let m = 0; m < fields.length; m++) {
-		
 			if (cheerThis('#content-grid-item-'+fields[m][0])[0]) {
 				currBook[fields[m][1]+'ValNum'] = Number(cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating > .field-items > .field-item.even > div')[0].attribs['class'].match(/[0-5]/)[0]);
 				currBook[fields[m][1]+'Desc'] = cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating-text > .field-items > .field-item.even > p').text()
@@ -233,21 +261,24 @@ async function scrapePage(currURL) {
 		}
 		books.push(currBook);
 		tempbooks.push(currBook);
-		console.log("Scraped "+currBook.title);
+		log("Scraped "+currBook.title);
 		resolve();
 	});
 }
-
 
 async function scrape() {
 	if (onPage > maxPage) {
 		scraperStatus = "stopped";
 		return;
 	}
+	if (desiredStatus == "running") {
+		scraperStatus = "running";
+	}
 	if (verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
 	var response = await needle('get', startingURL+onPage);
+	
 	if (verbose) {
 		console.log("GOT "+startingURL+onPage);
 	}
@@ -259,9 +290,9 @@ async function scrape() {
 	const cheer = cheerio.load(response.body);
 	var x = cheer('.csm-button');
 	
-	for (let i = 0; i < x.length; i++) {
+	for (; currBookOnPage < x.length; currBookOnPage++) {
 		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay);
-		let currURL = 'https://www.commonsensemedia.org' + x[i].attribs['href'];
+		let currURL = 'https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href'];
 		if (desiredStatus == "stopped") {
 			scraperStatus = "stopped";
 			return;
@@ -272,8 +303,9 @@ async function scrape() {
 		}
 		await scrapePage(currURL);
 	}
-	writeToCSV(tempbooks);
-	tempbooks = [];
+	onPage++;
+	currBookOnPage = 0;
+	
 	if (desiredStatus == "stopped") {
 		scraperStatus = "stopped";
 		return;
@@ -282,6 +314,11 @@ async function scrape() {
 		scraperStatus = "paused";
 		return;
 	}
+	if (!(desiredStatus == "paused" || desiredStatus == "stopped")) {
+		writeToCSV(tempbooks);
+		tempbooks = [];
+	}
+
 	setTimeout(scrape,(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay));
 };
 
@@ -289,33 +326,32 @@ const fs = require('fs');
 async function prepCSV() {
 	var err = await fs.writeFile('books.csv', "Title, Age Rating, Stars, Description, Author, Author first name, Author Surname, Genre, Release Date, Parent Age Rating, Parent Star Rating, Kids Age Rating, Kids Star Rating, Educational Value Score, Educational Value Description, Positive Message Value, Positive Message Description, Role Model Value, Role Model Description, Violence Value, Violence Description, Sex Value, Sex Description ( ͡° ͜ʖ ͡°), Language Value, Language Description ( ͡° ͜ʖ ͡°)( ͡° ͜ʖ ͡°), Consumerism Value, Consumerism Description, Drugs/Alchohol Value, Drugs/Alchohol Description\n");
 	if (err) throw err;
-	console.log('CSV prepped!');
+	log('Books CSV prepped.');
 	scraperStatus = "paused";
 	
 }
 
-//prepCSV().then(scrape);
+/* Startup */
 
-
-function writeToCSV(arr) {
-	let tempString = "";
-	for (let i = 0; i < arr.length; i++) {
-		for (let key in arr[i]) {
-			if (arr[i][key] && arr[i][key].toString().includes(',')) {
-				tempString+='"'+arr[i][key]+'",';
-			} else {
-				tempString+=arr[i][key]+',';
-			}
-		}
-		tempString += '\n';
+for (let e = 2; e < process.argv.length; e++) {
+	if (process.argv[e] == "--verbose") {
+		verbose = true;
+		break;
 	}
-
-	fs.appendFile('books.csv', tempString, (err) => {
-    if (err) throw err;
-    console.log('CSV saved!');
-});
-	
 }
+
+if (verbose) {
+	console.log('Verbose mode ON');
+} else {
+	console.log('Verbose mode OFF');
+}
+
+
+
+
+
+
+
 
 
 
