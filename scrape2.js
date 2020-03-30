@@ -23,15 +23,20 @@ var port;
 if (isRoot) {
 	port = 80;
 } else {
-	port = process.env.PORT;
+	port = process.env.PORT | 8000;
 }
 var server = app.listen(port, () => {
-	log("Started webserver");
+	log("Started webserver on port "+port);
 });
 const io = socketio.listen(server);
 
 app.set('view engine', 'ejs');
 
+io.on('connect', (socket) => {
+	socket.on('start', startScraper);
+	socket.on('stop', stopScraper);
+	socket.on('pause', pauseScraper);
+});
 
 /* Routing */
 app.get('/', (req, res) => {
@@ -40,41 +45,64 @@ app.get('/', (req, res) => {
 		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
 	} else {
 		stats = "0 Bytes";
+	}	
+	var statsJSON;
+	if (fs.existsSync(__dirname + '/books.json')) {
+		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+	} else {
+		statsJSON = "0 Bytes";
+	}
+	var startButtonDisabled = "";
+	var pauseButtonDisabled = "";
+	var stopButtonDisabled = "";
+	switch(scraperStatus) {
+		case 'paused':
+		case 'ready':
+			startButtonDisabled = "";
+			pauseButtonDisabled = "disabled";
+			stopButtonDisabled = "";
+			break;
+		case 'running':
+			startButtonDisabled = "disabled";
+			pauseButtonDisabled = "";
+			stopButtonDisabled = "";
+			break;
+		case 'stopped':
+			startButtonDisabled = "";
+			pauseButtonDisabled = "disabled";
+			stopButtonDisabled = "disabled";
+			break;
 	}
 	res.render('index', {
 		status: scraperStatus,
 		bookCount: books.length + (' ('+(20 - books.length%20)+' left until next save)'),
 		csvSize: stats,
-		jsonSize: stats,
-		logs: conlogs.join('')
+		jsonSize: statsJSON,
+		logs: conlogs.join(''),
+		startButtonDisabled: startButtonDisabled,
+		pauseButtonDisabled: pauseButtonDisabled,
+		stopButtonDisabled: stopButtonDisabled
 	});
 });
 
-app.post('/start', (req, res) => {
-	startScraper();
-	log('Started scraper');
-	res.send(true);
-});
-app.post('/pause', (req, res) => {
-	pauseScraper();
-	log('Paused scraper');
-	res.send(true);
-});
-app.post('/stop', (req, res) => {
-	stopScraper();
-	log('Stopped scraper');
-	res.send(true);
-});
 app.get('/styles.css', (req, res) => {
 	res.sendFile(__dirname + '/control/styles.css');
 });
 app.get('/scraperStatus.svg', (req, res) => {
+	res.set('Cache-control','max-age=0, must-revalidate');
 	res.sendFile(__dirname + '/control/' + scraperStatus + '.svg');
 });
 app.get('/script.js', (req, res) => {
 	res.sendFile(__dirname + '/control/script.js');
 });
 
+app.get('/books.csv', (req, res) => {
+	res.sendFile(__dirname + '/books.csv');
+});
+
+app.get('/books.json', (req, res) => {
+	res.sendFile(__dirname + '/books.json');
+});
 /* Variables */
 
 var startingURL = 'https://www.commonsensemedia.org/book-reviews?sort=field_stars_rating&order=desc&page=';
@@ -97,8 +125,13 @@ var conlogs = [];
 /* Functions */
 
 function log() {
-	console.log(params);
-	conlogs.push(params.join('')+'<br>');
+	var x = "";
+	for (let i = 0; i < arguments.length; i++) {
+		x += arguments[i];
+	}
+	console.log(x);
+	conlogs.push(x+'<br>');
+	io.emit('log', x+'<br>');
 }
 
 function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"],f=Math.floor(Math.log(a)/Math.log(c));return parseFloat((a/Math.pow(c,f)).toFixed(d))+" "+e[f]}
@@ -116,11 +149,16 @@ function pauseScraper() {
 		return;
 	}
 	desiredStatus = "paused";
+	scrape();
 }
 
 function startScraper() {
 	if (scraperStatus == "stopped") {
 		onPage = 0;
+		prepCSV();
+		books = [];
+		tempbooks = [];
+		currBookOnPage = 0;
 	}
 	desiredStatus = "running";
 	scrape();
@@ -128,14 +166,7 @@ function startScraper() {
 
 function stopScraper() {
 	desiredStatus = "stopped";
-	fs.writeFile('books.csv', "", (err) => {
-	if (err) throw err;
-		log('Books CSV erased');
-	});
-	fs.writeFile('books.json', '', (err) => {
-		if (err) throw err;
-		log('Books JSON erased');
-	});
+	scrape();
 }
 
 function writeToCSV(arr) {
@@ -259,21 +290,49 @@ async function scrapePage(currURL) {
 				currBook[b] = Number(currBook[b]);
 			}
 		}
+		if (desiredStatus == "stopped") {
+			scraperIs('stopped');
+			books = [];
+			return;
+		}
+		if (desiredStatus == "paused") {
+			scraperIs('paused');
+			return;
+		}
+		
 		books.push(currBook);
 		tempbooks.push(currBook);
-		log("Scraped "+currBook.title);
+		log("Scraped "+currBook.title);	
 		resolve();
 	});
 }
 
+function scraperIs(set) {
+	if (scraperStatus != set) {
+		scraperStatus = set;
+		log("Scraper is now "+set+".");
+		io.emit('newStatus',scraperStatus);
+	}
+}
+
 async function scrape() {
 	if (onPage > maxPage) {
-		scraperStatus = "stopped";
+		scraperIs("stopped");
+		log("Hit max page limit - "+maxPage);
 		return;
 	}
 	if (desiredStatus == "running") {
-		scraperStatus = "running";
+		scraperIs("running");
 	}
+	if (desiredStatus == "stopped") {
+		scraperIs("stopped");
+		return;
+	}
+	if (desiredStatus == "paused") {
+		scraperIs("paused");
+		return;
+	}
+	
 	if (verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
@@ -283,52 +342,59 @@ async function scrape() {
 		console.log("GOT "+startingURL+onPage);
 	}
 	if (!response.statusCode == 200) {
-		throw response.statusCode;
+		scraperIs('stopped');
 		return; 
 	}
 		
 	const cheer = cheerio.load(response.body);
 	var x = cheer('.csm-button');
-	
+	var stats;
+	var statsJSON;
 	for (; currBookOnPage < x.length; currBookOnPage++) {
-		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay);
+		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay); //please don't rate limit me :(
 		let currURL = 'https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href'];
 		if (desiredStatus == "stopped") {
-			scraperStatus = "stopped";
+			scraperIs('stopped');
+			books = [];
 			return;
 		}
 		if (desiredStatus == "paused") {
-			scraperStatus = "paused";
+			scraperIs('paused');
 			return;
 		}
 		await scrapePage(currURL);
+		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+		if (currBookOnPage != x.length-1) { 
+			io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
+		}
 	}
 	onPage++;
 	currBookOnPage = 0;
 	
 	if (desiredStatus == "stopped") {
-		scraperStatus = "stopped";
+		scraperIs('stopped');
 		return;
 	}
 	if (desiredStatus == "paused") {
-		scraperStatus = "paused";
+		scraperIs('paused');
 		return;
 	}
-	if (!(desiredStatus == "paused" || desiredStatus == "stopped")) {
-		writeToCSV(tempbooks);
-		tempbooks = [];
+	stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+	statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+	writeToCSV(tempbooks);
+	tempbooks = [];
+	io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
+	if (scraperStatus == "running" || desiredStatus == "running") {
+		setTimeout(scrape,(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay)); // please please please don't rate limit me :(
 	}
-
-	setTimeout(scrape,(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay));
 };
 
 const fs = require('fs');
 async function prepCSV() {
-	var err = await fs.writeFile('books.csv', "Title, Age Rating, Stars, Description, Author, Author first name, Author Surname, Genre, Release Date, Parent Age Rating, Parent Star Rating, Kids Age Rating, Kids Star Rating, Educational Value Score, Educational Value Description, Positive Message Value, Positive Message Description, Role Model Value, Role Model Description, Violence Value, Violence Description, Sex Value, Sex Description ( ͡° ͜ʖ ͡°), Language Value, Language Description ( ͡° ͜ʖ ͡°)( ͡° ͜ʖ ͡°), Consumerism Value, Consumerism Description, Drugs/Alchohol Value, Drugs/Alchohol Description\n");
-	if (err) throw err;
-	log('Books CSV prepped.');
-	scraperStatus = "paused";
-	
+	fs.writeFileSync('books.json', '');
+	fs.writeFileSync('books.csv', "Title, Age Rating, Stars, Description, Author, Author first name, Author Surname, Genre, Release Date, Parent Age Rating, Parent Star Rating, Kids Age Rating, Kids Star Rating, Educational Value Score, Educational Value Description, Positive Message Value, Positive Message Description, Role Model Value, Role Model Description, Violence Value, Violence Description, Sex Value, Sex Description ( ͡° ͜ʖ ͡°), Language Value, Language Description ( ͡° ͜ʖ ͡°)( ͡° ͜ʖ ͡°), Consumerism Value, Consumerism Description, Drugs/Alchohol Value, Drugs/Alchohol Description\n");
+	log('CSV & JSON reset.');
 }
 
 /* Startup */
@@ -345,13 +411,6 @@ if (verbose) {
 } else {
 	console.log('Verbose mode OFF');
 }
-
-
-
-
-
-
-
 
 
 
