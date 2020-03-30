@@ -1,0 +1,47 @@
+/* 
+	Styles.css
+	by Hugh Kelley
+	hughy62@gmail.com
+*/
+
+/*@import url('https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap');*/
+
+body {
+	background-color: #252830;
+	color:white;
+	font-family: "Fjalla One","sans-serif";
+}
+
+.content {
+	background-color: #200830;
+	padding:10%;
+	border-radius: 3em;
+}
+
+
+.scraperStatus {
+  height: 0.9em;
+  vertical-align: middle;
+  padding-right: 1em;
+}
+.status {
+  font-size: 1.3em;
+}
+h1 {
+  font-size: 2.5em;
+  text-decoration: underline;
+}
+.status > span {
+  display: block;
+  margin-top: 0.5em;
+}
+.status > button,.status>a {
+  background: unset;
+  color: unset;
+  font: unset;
+  border: solid 1px aliceblue;
+  margin-top: 2em;
+  padding: 0.5em;
+  padding-left: 1em;
+  padding-right: 1em;
+}

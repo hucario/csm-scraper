@@ -1,0 +1,19 @@
+{
+  "name": "csm-scraper",
+  "version": "1.0.0",
+  "description": "Scrapes commonsensemedia.org",
+  "main": "scrape2.js",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "ejs": "^3.0.2",
+    "express": "^4.17.1",
+    "needle": "^2.3.3"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"No tests installed.\"",
+    "start": "node scrape2.js"
+  },
+  "author": "",
+  "license": "ISC"
+}
