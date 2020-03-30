@@ -4,18 +4,21 @@
 	hughy62@gmail.com
 */
 
-/*@import url('https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap');*/
+@import url('https://fonts.googleapis.com/css2?family=Fjalla+One&display=swap');
 
 body {
 	background-color: #252830;
 	color:white;
 	font-family: "Fjalla One","sans-serif";
+	display: flex;
+	align-items: center;
 }
 
 .content {
 	background-color: #200830;
 	padding:10%;
 	border-radius: 3em;
+	width: 100%;
 }
 
 
@@ -44,4 +47,20 @@ h1 {
   padding: 0.5em;
   padding-left: 1em;
   padding-right: 1em;
+}
+
+.status > button[disabled] {
+	opacity: 0.5;
+}
+
+.logs {
+    overflow: scroll;
+    overflow-x: hidden;
+    max-height: 10em;
+    height: 10em;
+    font-family: monospace;
+    border-radius: 1em;
+    padding: 0.5em;
+    background: #333639;
+    margin-top: 1em;
 }

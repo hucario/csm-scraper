@@ -1,35 +1,68 @@
-function sendPost(recipient,data,callback) {
-					try {
-						if (recipient==undefined) {throw "You need a recipient for sendPost!";}
-						var request = new XMLHttpRequest;
-						request.open("POST",recipient);
-						if (callback!=undefined) {
-						request.addEventListener("load",callback);
-						}
-						request.addEventListener('error', function(er) {
-							throw er;
-						});
-						request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded")
-						request.send(data);
-					} catch(data) {
-						console.error('$h.sendPost() failed! Data thrown: '+data);
-					}
-				}
-				
+
 document.getElementById('start').addEventListener('click', () => {
-	sendPost('/start', '');
-	alert("Started scraper");
-	window.location = "";
+	socket.emit('start');
+	document.getElementById('status').innerText = "starting...";
 });
 
 document.getElementById('pause').addEventListener('click', () => {
-	sendPost('/pause', '');
-	alert("Paused scraper");
-	window.location = "";
+	socket.emit('pause');
+	document.getElementById('status').innerText = "pausing...";
 });
 
 document.getElementById('stop').addEventListener('click', () => {
-	sendPost('/stop', '');
-	alert("Stopped scraper");
-	window.location = "";
+	socket.emit('stop');
+	document.getElementById('status').innerText = "stopping...";
+});
+
+var socket = io();
+var startButton = document.getElementById('start');
+var pauseButton = document.getElementById('pause');
+var stopButton = document.getElementById('stop');
+		
+socket.on('newStatus', (newStatus) => {
+	document.querySelector('.scraperStatus').src = "scraperstatus.svg?x=" + new Date().getTime() + Math.floor(Math.random()*100);
+	document.getElementById('status').innerText = newStatus;
+	switch(newStatus) {
+		case 'paused':
+		case 'ready':
+			startButton.disabled = false;
+			pauseButton.disabled = true;
+			stopButton.disabled = false;
+
+			break;
+		case 'running':
+			startButton.disabled = true;
+			pauseButton.disabled = false;
+			stopButton.disabled = false;
+			break;
+		case 'stopped':
+			startButton.disabled = false;
+			pauseButton.disabled = true;
+			stopButton.disabled = true;
+			break;
+	}
+});
+
+
+socket.on('bookScraped', function(bookCount, sizeCSV, sizeJSON) {
+	document.getElementById('bookCount').innerText = "Books scraped: "+bookCount;
+	document.getElementById('csvSize').innerText = 	"CSV size: "+sizeCSV;
+	document.getElementById('jsonSize').innerText = "JSON size: "+sizeJSON;
+	console.log(arguments);
+});
+
+socket.on('disconnect', () => {
+	document.querySelector('.logs').innerHTML += 'Disconnected from scraper, reconnecting...<br>';
+});
+var once = true;
+socket.on('connect', () => {
+	if (!once) {
+		document.querySelector('.logs').innerHTML += 'Connected to scraper<br>';
+	}
+	once = false;
+});
+
+socket.on('log', (a) => {
+	document.querySelector('.logs').innerHTML += a;
+	document.querySelector('.logs').scrollTop = document.querySelector('.logs').scrollHeight;
 });
