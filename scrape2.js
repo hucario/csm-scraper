@@ -25,9 +25,10 @@ if (isRoot) {
 } else {
 	port = process.env.PORT | 8000;
 }
-var server = app.listen(port, () => {
+const server = app.listen(port, onStartup);
+function onStartup() {
 	log("Started webserver on port "+port);
-});
+}
 const io = socketio.listen(server);
 
 app.set('view engine', 'ejs');
