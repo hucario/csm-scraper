@@ -23,7 +23,7 @@ var port;
 if (isRoot) {
 	port = 80;
 } else {
-	port = process.env.PORT | 8000;
+	port = process.env.PORT || 8000;
 }
 const server = app.listen(port, onStartup);
 function onStartup() {
