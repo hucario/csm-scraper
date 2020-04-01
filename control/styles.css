@@ -64,3 +64,20 @@ h1 {
     background: #333639;
     margin-top: 1em;
 }
+
+input {
+    color: white;
+    font-family: "Fjalla One","sans-serif";
+    background: none;
+    height: 100%;
+    vertical-align: middle;
+    font-size: 1em;
+    width: 2em;
+    text-align: center;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: solid 2px white;
+    margin-left: 0.3em;
+    margin-right: 0.3em;
+}
