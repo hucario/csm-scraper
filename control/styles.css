@@ -81,3 +81,15 @@ input {
     margin-left: 0.3em;
     margin-right: 0.3em;
 }
+
+button#do {
+    background: none;
+    color: white;
+    font: inherit;
+    border: solid 1px white;
+    height: 2em;
+    vertical-align: middle;
+    margin-left: 1em;
+    padding-left: 1em;
+    padding-right: 1em;
+}
