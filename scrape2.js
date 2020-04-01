@@ -174,11 +174,14 @@ function writeToCSV(arr) {
 	let tempString = "";
 	for (let i = 0; i < arr.length; i++) {
 		for (let key in arr[i]) {
-			if (arr[i][key] && arr[i][key].toString().includes(',')) {
-				tempString+='"'+arr[i][key]+'",';
-			} else {
-				tempString+=arr[i][key]+',';
+			for (let b = 0; b < arr[i][key].toString().length; b++) {
+				if (arr[i][key].toString().split('')[b] == '"') {
+					tempString += '""';
+				} else {
+					tempString += arr[i][key].toString().split('')[b];
+				}
 			}
+			tempString+='"'+arr[i][key]+'",';
 		}
 		tempString += '\n';
 	}
