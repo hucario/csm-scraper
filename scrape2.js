@@ -182,7 +182,7 @@ function writeToCSV(arr) {
 					tempString += (""+arr[i][key]).split('')[b];
 				}
 			}
-			tempString+='"';
+			tempString+='",';
 		}
 		tempString += '\n';
 	}
