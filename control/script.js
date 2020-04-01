@@ -43,6 +43,16 @@ socket.on('newStatus', (newStatus) => {
 	}
 });
 
+socket.on('getCurrentBookOnPage', (e) => {
+	document.getElementById('currBookOnPage').innerText = e;
+});
+socket.on('currPage', (e) => {
+	document.getElementById('currBook').value = e;
+});
+document.getElementById('do').addEventListener('click', () => {
+	socket.emit('setcurrentpage', document.getElementById('currBook').value);
+});
+
 
 socket.on('bookScraped', function(bookCount, sizeCSV, sizeJSON) {
 	document.getElementById('bookCount').innerText = "Books scraped: "+bookCount;
