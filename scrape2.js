@@ -7,7 +7,7 @@
 /* Config */
 
 var minDelay = 1500;
-var maxDelay = 5000;
+var maxDelay = 4000;
 
 
 /* Requires */
@@ -175,11 +175,11 @@ function writeToCSV(arr) {
 	for (let i = 0; i < arr.length; i++) {
 		for (let key in arr[i]) {
 			tempString+='"';
-			for (let b = 0; b < arr[i][key].toString().length; b++) {
-				if (arr[i][key].toString().split('')[b] == '"') {
+			for (let b = 0; b < (""+arr[i][key]).length; b++) {
+				if ((""+arr[i][key]).split('')[b] == '"') {
 					tempString += '""';
 				} else {
-					tempString += arr[i][key].toString().split('')[b];
+					tempString += (""+arr[i][key]).split('')[b];
 				}
 			}
 			tempString+='"';
