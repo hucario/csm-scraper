@@ -206,11 +206,11 @@ function writeToCSV(arr) {
 async function scrapePage(currURL) {
   return new Promise(async (resolve) => {
 
-		if (verbose) {
+		if (true||verbose) {
 			console.log("GET "+currURL);
 		}
 		var res = await needle('get', currURL);
-		if (verbose) {
+		if (true||verbose) {
 			console.log("GOT "+currURL);
 		}
 		let cheerThis = cheerio.load(res.body);
@@ -344,12 +344,12 @@ async function scrape() {
 		return;
 	}
 	
-	if (verbose) {
+	if (true||verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
 	var response = await needle('get', startingURL+onPage);
 	
-	if (verbose) {
+	if (true||verbose) {
 		console.log("GOT "+startingURL+onPage);
 	}
 	if (!response.statusCode == 200) {
@@ -378,8 +378,8 @@ async function scrape() {
 		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
 		if (currBookOnPage != x.length-1) { 
 			io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
+			io.emit('getCurrentBookOnPage', currBookOnPage);
 		}
-		io.emit('getCurrentBookOnPage', currBookOnPage);
 	}
 	onPage++;
 	currBookOnPage = 0;
