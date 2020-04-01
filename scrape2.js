@@ -37,6 +37,10 @@ io.on('connect', (socket) => {
 	socket.on('start', startScraper);
 	socket.on('stop', stopScraper);
 	socket.on('pause', pauseScraper);
+	socket.on('setcurrentpage', (b) => {
+		onPage = b;
+		currBookOnPage = 0;
+	});
 });
 
 /* Routing */
@@ -82,7 +86,9 @@ app.get('/', (req, res) => {
 		logs: conlogs.join(''),
 		startButtonDisabled: startButtonDisabled,
 		pauseButtonDisabled: pauseButtonDisabled,
-		stopButtonDisabled: stopButtonDisabled
+		stopButtonDisabled: stopButtonDisabled,
+		onPage: onPage,
+		currBookOnPage: currBookOnPage
 	});
 });
 
@@ -373,10 +379,12 @@ async function scrape() {
 		if (currBookOnPage != x.length-1) { 
 			io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
 		}
+		io.emit('getCurrentBookOnPage', currBookOnPage);
 	}
 	onPage++;
 	currBookOnPage = 0;
-	
+	io.emit('getCurrentBookOnPage', currBookOnPage);
+	io.emit('currPage', onPage);
 	if (desiredStatus == "stopped") {
 		scraperIs('stopped');
 		return;
