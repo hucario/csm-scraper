@@ -48,8 +48,8 @@ io.on('connect', (socket) => {
 /* Routing */
 app.get('/', (req, res) => {
 
-	var stats = "Error";
-	var statsJSON = "Error";
+	var stats;
+	var statsJSON;
 	try {
 		if (fs.existsSync(__dirname + '/books.csv')) {
 			stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
@@ -442,8 +442,8 @@ async function scrape() {
 		return;
 	}
 	let x = cheer('.csm-button');
-	var stats = "Error";
-	var statsJSON = "Error";
+	var stats;
+	var statsJSON;
 	for (; currBookOnPage < x.length; currBookOnPage++) {
 		if (!x[currBookOnPage].attribs['href']) {
 			log('Hold up! Button #'+currBookOnPage+' on page '+onPage+' is missing a href attribute!');
@@ -485,8 +485,14 @@ async function scrape() {
 		scraperIs('paused');
 		return;
 	}
-	stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
-	statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+	try {
+		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+	} catch(e) {
+		log('Error getting file sizes: '+e);
+		pauseScraper();
+		return;
+	}
 	writeToCSV(tempbooks);
 	tempbooks = [];
 	io.emit('bookScraped', books.length + (' ('+(20 - currBookOnPage)+' left until next save)'), stats, statsJSON);
