@@ -47,6 +47,7 @@ socket.on('getCurrentBookOnPage', (e) => {
 	document.getElementById('currBookOnPage').innerText = Number(e)+1;
 });
 socket.on('currPage', (e) => {
+	console.log(e);
 	document.getElementById('currBook').value = e;
 });
 document.getElementById('do').addEventListener('click', () => {
