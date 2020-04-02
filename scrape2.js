@@ -174,6 +174,9 @@ function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","
 
 
 function chopOffTail(orig,fromlast) {
+	if (!orig.toString) {
+		return "";
+	}
 	return orig.toString().substring(0,orig.toString().length-fromlast); 
 }
 
@@ -280,7 +283,10 @@ async function scrapePage(currURL) {
 			} else {
 				currBook.activism = false;
 			}
-			let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1]
+			let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1];
+			if (!ageNonParsed) {
+				throw "ageNonParsed is undefined";
+			}
 			ageNonParsed = ageNonParsed.substring(0,ageNonParsed.length-4);
 			currBook.ageRating = Number(ageNonParsed);		
 			currBook.stars = Number(cheerThis('.ratings-small.star.field_stars_rating.csm_review')[0].attribs['class'].match(/[0-5]/)[0]);
