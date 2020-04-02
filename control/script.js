@@ -76,3 +76,9 @@ socket.on('log', (a) => {
 	document.querySelector('.logs').innerHTML += a;
 	document.querySelector('.logs').scrollTop = document.querySelector('.logs').scrollHeight;
 });
+
+async function doTheFetchThing() {
+	await fetch('/socket.io/socket.io.js');
+	setTimeout(doTheFetchThing, (10*60*1000));
+}
+doTheFetchThing();
