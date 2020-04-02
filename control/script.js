@@ -72,6 +72,12 @@ socket.on('connect', () => {
 	once = false;
 });
 
+socket.on('update', (a) => {
+	document.querySelector('.logs').innerHTML += "GitHub commit ";
+	document.querySelector('.logs').innerText += a;
+	document.querySelector('.logs').innerHTML += " has been pushed, scraper will restart shortly...<br>";
+});
+
 socket.on('log', (a) => {
 	document.querySelector('.logs').innerHTML += a;
 	document.querySelector('.logs').scrollTop = document.querySelector('.logs').scrollHeight;
