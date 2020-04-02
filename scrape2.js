@@ -8,7 +8,7 @@
 
 var minDelay = 1500;
 var maxDelay = 4000;
-var verbose = true;
+var verbose = false;
 
 /* Requires */
 const express = require('express');
@@ -47,18 +47,22 @@ io.on('connect', (socket) => {
 
 /* Routing */
 app.get('/', (req, res) => {
-	var stats;
-	if (fs.existsSync(__dirname + '/books.csv')) {
-		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
-	} else {
-		stats = "0 Bytes";
-	}	
-	var statsJSON;
-	if (fs.existsSync(__dirname + '/books.json')) {
-		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
-	} else {
-		statsJSON = "0 Bytes";
-	}
+	try {
+		var stats;
+		if (fs.existsSync(__dirname + '/books.csv')) {
+			stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+		} else {
+			stats = "0 Bytes";
+		}	
+		var statsJSON;
+		if (fs.existsSync(__dirname + '/books.json')) {
+			statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+		} else {
+			statsJSON = "0 Bytes";
+		}
+	} catch((e) => {
+		log('Error getting file size: '+e);
+	});
 	var startButtonDisabled = "";
 	var pauseButtonDisabled = "";
 	var stopButtonDisabled = "";
@@ -80,37 +84,58 @@ app.get('/', (req, res) => {
 			stopButtonDisabled = "disabled";
 			break;
 	}
-	res.render('index', {
-		status: scraperStatus,
-		bookCount: books.length + (' ('+(20 - books.length%20)+' left until next save)'),
-		csvSize: stats,
-		jsonSize: statsJSON,
-		logs: conlogs.join(''),
-		startButtonDisabled: startButtonDisabled,
-		pauseButtonDisabled: pauseButtonDisabled,
-		stopButtonDisabled: stopButtonDisabled,
-		onPage: onPage,
-		currBookOnPage: currBookOnPage
+	try {
+		res.render('index', {
+			status: scraperStatus,
+			bookCount: books.length + (' ('+(20 - currBookOnPage)+' left until next save)'),
+			csvSize: stats,
+			jsonSize: statsJSON,
+			logs: conlogs.join(''),
+			startButtonDisabled: startButtonDisabled,
+			pauseButtonDisabled: pauseButtonDisabled,
+			stopButtonDisabled: stopButtonDisabled,
+			onPage: onPage,
+			currBookOnPage: currBookOnPage
+		});
+	} catch((e) => {
+		log('Error rendering index: '+e);
 	});
 });
 
 app.get('/styles.css', (req, res) => {
-	res.sendFile(__dirname + '/control/styles.css');
+	try {
+		res.sendFile(__dirname + '/control/styles.css');
+	} catch((e) => {
+		log('Error sending stylesheet: '+e);
+	});
 });
 app.get('/scraperStatus.svg', (req, res) => {
-	res.set('Cache-control','max-age=0, must-revalidate');
-	res.sendFile(__dirname + '/control/' + scraperStatus + '.svg');
+	try {
+		res.set('Cache-control','max-age=0, must-revalidate');
+		res.sendFile(__dirname + '/control/' + scraperStatus + '.svg');
+	} catch((e) => {
+		log('Error sending scraperStatus.svg: '+e);
+	});
 });
 app.get('/script.js', (req, res) => {
 	res.sendFile(__dirname + '/control/script.js');
+	// not much point in putting a try/catch here, as it wouldn't be read by the client anyways
 });
 
 app.get('/books.csv', (req, res) => {
-	res.sendFile(__dirname + '/books.csv');
+	try {
+		res.sendFile(__dirname + '/books.csv');
+	} catch((e) => {
+		log('Error sending books.csv: '+e);
+	});
 });
 
 app.get('/books.json', (req, res) => {
-	res.sendFile(__dirname + '/books.json');
+	try {
+		res.sendFile(__dirname + '/books.json');
+	} catch((e) => {
+		log('Error sending books.json: '+e);
+	});
 });
 /* Variables */
 
@@ -148,6 +173,7 @@ function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","
 function chopOffTail(orig,fromlast) {
 	return orig.toString().substring(0,orig.toString().length-fromlast); 
 }
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -181,27 +207,37 @@ function stopScraper() {
 
 function writeToCSV(arr) {
 	let tempString = "";
-	for (let i = 0; i < arr.length; i++) {
-		for (let key in arr[i]) {
-			tempString+='"';
-			for (let b = 0; b < (""+arr[i][key]).length; b++) {
-				if ((""+arr[i][key]).split('')[b] == '"') {
-					tempString += '""';
-				} else {
-					tempString += (""+arr[i][key]).split('')[b];
+	try {
+		for (let i = 0; i < arr.length; i++) {
+			for (let key in arr[i]) {
+				tempString+='"';
+				for (let b = 0; b < (""+arr[i][key]).length; b++) {
+					if ((""+arr[i][key]).split('')[b] == '"') {
+						tempString += '""';
+					} else {
+						tempString += (""+arr[i][key]).split('')[b];
+					}
 				}
+				tempString+='",';
 			}
-			tempString+='",';
+			tempString += '\n';
 		}
-		tempString += '\n';
-	}
+	} catch((e) => {
+		log('Error rendering books.csv: '+e);
+	});
 
 	fs.appendFile('books.csv', tempString, (err) => {
-		if (err) throw err;
+		if (err) {
+			log('Error writing to books.csv: '+err);
+			return;
+		}
 		log('Books CSV saved');
 	});
 	fs.writeFile('books.json', JSON.stringify(books), (err) => {
-		if (err) throw err;
+		if (err) {
+			log('Error writing to books.json: '+err);
+			return;
+		}
 		log('Books JSON saved');
 	});
 }
@@ -212,98 +248,122 @@ async function scrapePage(currURL) {
 		if (verbose) {
 			console.log("GET "+currURL);
 		}
-		var res = await needle('get', currURL);
+	  	try {
+			var res = await needle('get', currURL);
+		} catch((e) => {
+			log('Error GETting "'+currURLL+'": '+e);
+			pauseScraper();
+			return;
+		});
 		if (verbose) {
 			console.log("GOT "+currURL);
 		}
-		let cheerThis = cheerio.load(res.body);
-		let currBook = {};
-		currBook.title = cheerThis('.pane-node-title.csm_book').text();
-		if (res.body.toLowerCase().includes('activism')) { // nah fam
-			log('Activism detected, cancelling scraping of '+currBook.title);
-			resolve();
+	  	try {
+			let cheerThis = cheerio.load(res.body);
+		} catch ((e) => {
+			log('Error parsing HTML: '+e);
+			pauseScraper();
 			return;
-		}	
-		let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1]
-		ageNonParsed = ageNonParsed.substring(0,ageNonParsed.length-4);
-		currBook.ageRating = Number(ageNonParsed);		
-		currBook.stars = Number(cheerThis('.ratings-small.star.field_stars_rating.csm_review')[0].attribs['class'].match(/[0-5]/)[0]);
-		currBook.desc = cheerThis('.panel-pane.pane-entity-field.pane-node-field-one-liner').text();
-		currBook.author = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.first').text();
-		currBook.authorFirstName = currBook.author.split(' ')[0];
-		currBook.authorSurname = currBook.author.split(' ')[1];
-		currBook.genre = cheerThis('.product-subtitle.csm_book>.item-list>ul>li:nth-child(2)').text();
-		currBook.releaseDate = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.last').text();
-	
-		if (cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text()) {
-			currBook.parentAgeRating = chopOffTail(cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text().split(' ')[1],1); // age rating, according to parents
-			currBook.parentStars = Number(cheerThis('.user-review-statistics.adult>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]); // stars, according to parents		
-
-		} else {
-			currBook.parentAgeRating = null;
-			currBook.parentStars = null;
-		}
-		
-		if (cheerThis('.user-review-statistics.child>.stat-wrapper.age').text()) {
-			currBook.kidsAgeRating = chopOffTail(cheerThis('.user-review-statistics.child>.stat-wrapper.age').text().split(' ')[1],1);// age rating, according to kids
-			currBook.kidsStars = Number(cheerThis('.user-review-statistics.child>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]);// stars, according to kids
-		} else {
-			currBook.kidsAgeRating = null;
-			currBook.kidsStars = null;
-		}
-
-		let fields = [
-			[
-				'educational',
-				'eduVal'
-			],
-			[
-				'message',
-				'posMsg'
-			],
-			[
-				'role_model',
-				'roleModel',
-			],
-			[
-				'violence',
-				'violence'
-			],
-			[
-				'sex',
-				'sex'
-			],
-			[
-				'language',
-				'lang'
-			],
-			[
-				'consumerism',
-				'cons'
-			],
-			[
-				'drugs',
-				'drugs'
-			]
-		]
-		for (let m = 0; m < fields.length; m++) {
-			if (cheerThis('#content-grid-item-'+fields[m][0])[0]) {
-				currBook[fields[m][1]+'ValNum'] = Number(cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating > .field-items > .field-item.even > div')[0].attribs['class'].match(/[0-5]/)[0]);
-				currBook[fields[m][1]+'Desc'] = cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating-text > .field-items > .field-item.even > p').text()
+		});
+	  	try {
+			let currBook = {};
+			currBook.title = cheerThis('.pane-node-title.csm_book').text();
+			if (res.body.toLowerCase().includes('activism')) { // nah fam
+				log('Activism detected in '+currBook.title);
+				currBook.activism = true;
 			} else {
-				currBook[fields[m][1]+'ValNum'] = -1;
-				currBook[fields[m][1]+'Desc'] = null;
-			}		
-		}
-
-		for (let b in currBook) {
-			if (currBook[b] && currBook[b].toString() === currBook[b]) {
-				currBook[b] = currBook[b].trim();
+				currBook.activism = false;
 			}
-			if (currBook[b] && Number(currBook[b]) == currBook[b]) {
-				currBook[b] = Number(currBook[b]);
+			let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1]
+			ageNonParsed = ageNonParsed.substring(0,ageNonParsed.length-4);
+			currBook.ageRating = Number(ageNonParsed);		
+			currBook.stars = Number(cheerThis('.ratings-small.star.field_stars_rating.csm_review')[0].attribs['class'].match(/[0-5]/)[0]);
+			currBook.desc = cheerThis('.panel-pane.pane-entity-field.pane-node-field-one-liner').text();
+			currBook.author = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.first').text();
+			currBook.authorFirstName = currBook.author.split(' ')[0];
+			currBook.authorSurname = currBook.author.split(' ')[1];
+			currBook.genre = cheerThis('.product-subtitle.csm_book>.item-list>ul>li:nth-child(2)').text();
+			currBook.releaseDate = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.last').text();
+		
+			if (cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text()) {
+				currBook.parentAgeRating = chopOffTail(cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text().split(' ')[1],1); // age rating, according to parents
+				currBook.parentStars = Number(cheerThis('.user-review-statistics.adult>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]); // stars, according to parents		
+	
+			} else {
+				currBook.parentAgeRating = null;
+				currBook.parentStars = null;
 			}
-		}
+			
+			if (cheerThis('.user-review-statistics.child>.stat-wrapper.age').text()) {
+				currBook.kidsAgeRating = chopOffTail(cheerThis('.user-review-statistics.child>.stat-wrapper.age').text().split(' ')[1],1);// age rating, according to kids
+				currBook.kidsStars = Number(cheerThis('.user-review-statistics.child>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]);// stars, according to kids
+			} else {
+				currBook.kidsAgeRating = null;
+				currBook.kidsStars = null;
+			}
+	
+			let fields = [
+				[
+					'educational',
+					'eduVal'
+				],
+				[
+					'message',
+					'posMsg'
+				],
+				[
+					'role_model',
+					'roleModel',
+				],
+				[
+					'violence',
+					'violence'
+				],
+				[
+					'sex',
+					'sex'
+				],
+				[
+					'language',
+					'lang'
+				],
+				[
+					'consumerism',
+					'cons'
+				],
+				[
+					'drugs',
+					'drugs'
+				]
+			]
+			for (let m = 0; m < fields.length; m++) {
+				if (cheerThis('#content-grid-item-'+fields[m][0])[0]) {
+					currBook[fields[m][1]+'ValNum'] = Number(cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating > .field-items > .field-item.even > div')[0].attribs['class'].match(/[0-5]/)[0]);
+					currBook[fields[m][1]+'Desc'] = cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating-text > .field-items > .field-item.even > p').text()
+				} else {
+					currBook[fields[m][1]+'ValNum'] = -1;
+					currBook[fields[m][1]+'Desc'] = null;
+				}		
+			}
+		} catch((e) => {
+			log('Error parsing parsed HTML: '+e);
+			pauseScraper();
+			return;
+		});
+		try {
+			for (let b in currBook) {
+				if (currBook[b] && currBook[b].toString() === currBook[b]) {
+					currBook[b] = currBook[b].trim();
+				}
+				if (currBook[b] && Number(currBook[b]) == currBook[b]) {
+					currBook[b] = Number(currBook[b]);
+				}
+			}
+		} catch((e) => {
+			log('Error type-converting parsed data: '+e);
+			pauseScraper();
+			return;
+		});
 		if (desiredStatus == "stopped") {
 			scraperIs('stopped');
 			books = [];
@@ -332,7 +392,7 @@ function scraperIs(set) {
 async function scrape() {
 	if (onPage > maxPage) {
 		scraperIs("stopped");
-		log("Hit max page limit - "+maxPage);
+		log("Hit max page limit - "+onPage+' >= '+maxPage);
 		return;
 	}
 	if (desiredStatus == "running") {
@@ -350,22 +410,38 @@ async function scrape() {
 	if (verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
-	var response = await needle('get', startingURL+onPage);
+	try {
+		var response = await needle('get', startingURL+onPage);
+	} catch((e) => {
+		log('Error GETting "'+startingURL+onPage+'": '+e);
+		pauseScraper();
+		return;
+	});
 	
 	if (verbose) {
 		console.log("GOT "+startingURL+onPage);
 	}
 	if (!response.statusCode == 200) {
-		scraperIs('stopped');
+		log('"'+startingURL+onPage+'": HTTP Error "+response.statusCode);
+		pauseScraper();
 		return; 
 	}
-		
-	const cheer = cheerio.load(response.body);
+	try {
+		const cheer = cheerio.load(response.body);
+	} catch((e) => {
+		log('Error parsing html for page '+onPage+': '+e);
+		pauseScraper();
+		return;
+	});
 	let x = cheer('.csm-button');
-	console.log(x[0].attribs['href']);
 	var stats;
 	var statsJSON;
 	for (; currBookOnPage < x.length; currBookOnPage++) {
+		if (!x[currBookOnPage].attribs['href']) {
+			log('Hold up! Button #'+currBookOnPage+' on page '+onPage+' is missing a href attribute!');
+			pauseScraper();
+			return;
+		}
 		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay); //please don't ban me :(
 		if (desiredStatus == "stopped") {
 			scraperIs('stopped');
@@ -376,13 +452,24 @@ async function scrape() {
 			scraperIs('paused');
 			return;
 		}
-		console.log('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
-		console.log(onPage);
-		await scrapePage('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
-		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
-		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+		try {
+			await scrapePage('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
+		} catch((e) => {
+			// there's absolutely no reason this should happen but worst comes worst,
+			log('Uncaught exception scraping '+x[currBookOnPage].attribs['href']+': '+e);
+			pauseScraper();
+			return;
+		});
+		try {
+			stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
+			statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
+		} catch ((e) => {
+			log('Error getting file stats for books.csv and/or books.json: '+e);
+			pauseScraper();
+			return;
+		});
 		if (currBookOnPage != x.length-1) { 
-			io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
+			io.emit('bookScraped', books.length + (' ('+(20 - currBookOnPage)+' left until next save)'), stats, statsJSON);
 			io.emit('getCurrentBookOnPage', currBookOnPage);
 		}
 	}
@@ -402,16 +489,21 @@ async function scrape() {
 	statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
 	writeToCSV(tempbooks);
 	tempbooks = [];
-	io.emit('bookScraped', books.length + (' ('+(20 - books.length%20)+' left until next save)'), stats, statsJSON);
+	io.emit('bookScraped', books.length + (' ('+(20 - currBookOnPage)+' left until next save)'), stats, statsJSON);
 	if (scraperStatus == "running" || desiredStatus == "running") {
-		setTimeout(scrape,(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay)); // please please please don't rate limit me :(
+		setTimeout(scrape,(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay));
 	}
 };
 
 const fs = require('fs');
 async function prepCSV() {
-	fs.writeFileSync('books.json', '');
-	fs.writeFileSync('books.csv', "Title, Age Rating, Stars, Description, Author, Author first name, Author Surname, Genre, Release Date, Parent Age Rating, Parent Star Rating, Kids Age Rating, Kids Star Rating, Educational Value Score, Educational Value Description, Positive Message Value, Positive Message Description, Role Model Value, Role Model Description, Violence Value, Violence Description, Sex Value, Sex Description ( ͡° ͜ʖ ͡°), Language Value, Language Description ( ͡° ͜ʖ ͡°)( ͡° ͜ʖ ͡°), Consumerism Value, Consumerism Description, Drugs/Alchohol Value, Drugs/Alchohol Description\n");
+	try {
+		fs.writeFileSync('books.json', '');
+		fs.writeFileSync('books.csv', "Title, Activist?, Age Rating, Stars, Description, Author, Author first name, Author Surname, Genre, Release Date, Parent Age Rating, Parent Star Rating, Kids Age Rating, Kids Star Rating, Educational Value Score, Educational Value Description, Positive Message Value, Positive Message Description, Role Model Value, Role Model Description, Violence Value, Violence Description, Sex Value, Sex Description ( ͡° ͜ʖ ͡°), Language Value, Language Description ( ͡° ͜ʖ ͡°)( ͡° ͜ʖ ͡°), Consumerism Value, Consumerism Description, Drugs/Alchohol Value, Drugs/Alchohol Description\n");
+	} catch((e) => {
+		log('Error prepping books.json and/or books.csv: '+e);
+		return;
+	});
 	log('CSV & JSON reset.');
 }
 
