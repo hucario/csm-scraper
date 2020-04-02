@@ -8,7 +8,7 @@
 
 var minDelay = 1500;
 var maxDelay = 4000;
-
+var verbose = true;
 
 /* Requires */
 const express = require('express');
@@ -121,7 +121,6 @@ var desiredStatus = "stopped";
 var tempbooks = [];
 var books = [];
 
-var verbose = false;
 
 
 var onPage = 0;
@@ -207,11 +206,11 @@ function writeToCSV(arr) {
 async function scrapePage(currURL) {
   return new Promise(async (resolve) => {
 
-		if (true||verbose) {
+		if (verbose) {
 			console.log("GET "+currURL);
 		}
 		var res = await needle('get', currURL);
-		if (true||verbose) {
+		if (verbose) {
 			console.log("GOT "+currURL);
 		}
 		let cheerThis = cheerio.load(res.body);
@@ -345,12 +344,12 @@ async function scrape() {
 		return;
 	}
 	
-	if (true||verbose) {
+	if (verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
 	var response = await needle('get', startingURL+onPage);
 	
-	if (true||verbose) {
+	if (verbose) {
 		console.log("GOT "+startingURL+onPage);
 	}
 	if (!response.statusCode == 200) {
@@ -364,7 +363,6 @@ async function scrape() {
 	var statsJSON;
 	for (; currBookOnPage < x.length; currBookOnPage++) {
 		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay); //please don't rate limit me :(
-		let currURL = 'https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href'];
 		if (desiredStatus == "stopped") {
 			scraperIs('stopped');
 			books = [];
@@ -374,7 +372,7 @@ async function scrape() {
 			scraperIs('paused');
 			return;
 		}
-		await scrapePage(currURL);
+		await scrapePage('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
 		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
 		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
 		if (currBookOnPage != x.length-1) { 
