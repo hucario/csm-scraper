@@ -38,6 +38,7 @@ io.on('connect', (socket) => {
 	socket.on('stop', stopScraper);
 	socket.on('pause', pauseScraper);
 	socket.on('setcurrentpage', (b) => {
+		log('Setting current page to '+b);
 		onPage = b;
 		currBookOnPage = 0;
 	});
