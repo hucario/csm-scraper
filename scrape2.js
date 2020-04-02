@@ -63,6 +63,8 @@ app.get('/', (req, res) => {
 		}
 	} catch(e){
 		log('Error getting file size: '+e);
+		stats = "Error";
+		statsJSON = "Error";
 	}
 	var startButtonDisabled = "";
 	var pauseButtonDisabled = "";
@@ -250,8 +252,9 @@ async function scrapePage(currURL) {
 		if (verbose) {
 			console.log("GET "+currURL);
 		}
+		var res;
 	  	try {
-			var res = await needle('get', currURL);
+			res = await needle('get', currURL);
 		} catch(e) {
 			log('Error GETting "'+currURLL+'": '+e);
 			pauseScraper();
@@ -260,15 +263,16 @@ async function scrapePage(currURL) {
 		if (verbose) {
 			console.log("GOT "+currURL);
 		}
+		let cheerThis
 	  	try {
-			let cheerThis = cheerio.load(res.body);
+			cheerThis = cheerio.load(res.body);
 		} catch (e) {
 			log('Error parsing HTML: '+e);
 			pauseScraper();
 			return;
 		}
+		let currBook = {};
 	  	try {
-			let currBook = {};
 			currBook.title = cheerThis('.pane-node-title.csm_book').text();
 			if (res.body.toLowerCase().includes('activism')) { // nah fam
 				log('Activism detected in '+currBook.title);
@@ -412,8 +416,9 @@ async function scrape() {
 	if (verbose) {
 		console.log("GET "+startingURL+onPage);
 	}
+	var response;
 	try {
-		var response = await needle('get', startingURL+onPage);
+		response = await needle('get', startingURL+onPage);
 	} catch(e) {
 		log('Error GETting "'+startingURL+onPage+'": '+e);
 		pauseScraper();
