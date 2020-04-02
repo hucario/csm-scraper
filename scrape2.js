@@ -428,8 +428,9 @@ async function scrape() {
 		pauseScraper();
 		return; 
 	}
+	var cheer;
 	try {
-		const cheer = cheerio.load(response.body);
+		cheer = cheerio.load(response.body);
 	} catch(e) {
 		log('Error parsing html for page '+onPage+': '+e);
 		pauseScraper();
