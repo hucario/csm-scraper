@@ -424,7 +424,7 @@ async function scrape() {
 		console.log("GOT "+startingURL+onPage);
 	}
 	if (!response.statusCode == 200) {
-		log('"'+startingURL+onPage+'": HTTP Error "+response.statusCode);
+		log('"'+startingURL+onPage+'": HTTP Error '+response.statusCode);
 		pauseScraper();
 		return; 
 	}
