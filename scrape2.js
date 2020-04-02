@@ -41,6 +41,7 @@ io.on('connect', (socket) => {
 		log('Setting current page to '+b);
 		onPage = b;
 		currBookOnPage = 0;
+		manuallySet = true;
 	});
 });
 
@@ -120,7 +121,7 @@ var desiredStatus = "stopped";
 
 var tempbooks = [];
 var books = [];
-
+var manuallySet = false;
 
 
 var onPage = 0;
@@ -161,7 +162,9 @@ function pauseScraper() {
 
 function startScraper() {
 	if (scraperStatus == "stopped") {
-		onPage = 0;
+		if (!manuallySet) {
+			onPage = 0;
+		}
 		prepCSV();
 		books = [];
 		tempbooks = [];
@@ -358,11 +361,12 @@ async function scrape() {
 	}
 		
 	const cheer = cheerio.load(response.body);
-	var x = cheer('.csm-button');
+	let x = cheer('.csm-button');
+	console.log(x[0].attribs['href']);
 	var stats;
 	var statsJSON;
 	for (; currBookOnPage < x.length; currBookOnPage++) {
-		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay); //please don't rate limit me :(
+		await sleep(Math.floor(Math.random()*(maxDelay-minDelay))+minDelay); //please don't ban me :(
 		if (desiredStatus == "stopped") {
 			scraperIs('stopped');
 			books = [];
@@ -372,6 +376,8 @@ async function scrape() {
 			scraperIs('paused');
 			return;
 		}
+		console.log('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
+		console.log(onPage);
 		await scrapePage('https://www.commonsensemedia.org' + x[currBookOnPage].attribs['href']);
 		stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
 		statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
