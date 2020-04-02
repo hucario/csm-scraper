@@ -47,14 +47,15 @@ io.on('connect', (socket) => {
 
 /* Routing */
 app.get('/', (req, res) => {
+
+	var stats = "Error";
+	var statsJSON = "Error";
 	try {
-		var stats;
 		if (fs.existsSync(__dirname + '/books.csv')) {
 			stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
 		} else {
 			stats = "0 Bytes";
 		}	
-		var statsJSON;
 		if (fs.existsSync(__dirname + '/books.json')) {
 			statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
 		} else {
@@ -434,8 +435,8 @@ async function scrape() {
 		return;
 	});
 	let x = cheer('.csm-button');
-	var stats;
-	var statsJSON;
+	var stats = "Error";
+	var statsJSON = "Error";
 	for (; currBookOnPage < x.length; currBookOnPage++) {
 		if (!x[currBookOnPage].attribs['href']) {
 			log('Hold up! Button #'+currBookOnPage+' on page '+onPage+' is missing a href attribute!');
@@ -457,14 +458,6 @@ async function scrape() {
 		} catch((e) => {
 			// there's absolutely no reason this should happen but worst comes worst,
 			log('Uncaught exception scraping '+x[currBookOnPage].attribs['href']+': '+e);
-			pauseScraper();
-			return;
-		});
-		try {
-			stats = formatBytes(fs.statSync(__dirname + "/books.csv").size);
-			statsJSON = formatBytes(fs.statSync(__dirname + "/books.json").size);
-		} catch ((e) => {
-			log('Error getting file stats for books.csv and/or books.json: '+e);
 			pauseScraper();
 			return;
 		});
