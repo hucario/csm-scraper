@@ -8,7 +8,8 @@
     "ejs": "^3.0.2",
     "express": "^4.17.1",
     "needle": "^2.3.3",
-    "socket.io": "^2.3.0"
+    "socket.io": "^2.3.0",
+    "body-parser": "^1.19.0"
   },
   "devDependencies": {},
   "scripts": {
