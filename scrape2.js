@@ -53,6 +53,7 @@ app.post('/update', (req, res) => {
 	let afta = req.body.after; 
 	let compareLink = req.body.compare
 	io.emit('update', afta, compareLink); // I should probably authenticate this
+	res.status(200).send();
 });
 
 app.get('/', (req, res) => {
