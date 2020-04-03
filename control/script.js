@@ -72,10 +72,8 @@ socket.on('connect', () => {
 	once = false;
 });
 
-socket.on('update', (a) => {
-	document.querySelector('.logs').innerHTML += "GitHub commit ";
-	document.querySelector('.logs').innerText += a;
-	document.querySelector('.logs').innerHTML += " has been pushed, scraper will restart shortly...<br>";
+socket.on('update', (a,b) => {
+	document.querySelector('.logs').innerHTML += 'GitHub commit <a href="'+b+'" class="update">'+a+'</a> has been pushed, scraper will restart shortly...<br>';
 });
 
 socket.on('log', (a) => {
