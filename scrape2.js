@@ -46,6 +46,11 @@ io.on('connect', (socket) => {
 });
 
 /* Routing */
+app.post('/update', (req, res) => {
+	let afta = req.body.after; 
+	let compareLink = req.body.compare
+});
+
 app.get('/', (req, res) => {
 
 	var stats;
