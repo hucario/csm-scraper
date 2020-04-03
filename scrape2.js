@@ -15,6 +15,8 @@ const express = require('express');
 const needle = require('needle'); 
 const cheerio = require('cheerio');
 const socketio = require('socket.io');
+const bodyParser = require('body-parser')
+
 
 /* Set up express & socketio */
 const app = express();
@@ -32,6 +34,7 @@ function onStartup() {
 const io = socketio.listen(server);
 
 app.set('view engine', 'ejs');
+app.use(bodyParser.json());
 
 io.on('connect', (socket) => {
 	socket.on('start', startScraper);
