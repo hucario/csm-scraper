@@ -20,7 +20,7 @@ const bodyParser = require('body-parser')
 
 /* Set up express & socketio */
 const app = express();
-var isRoot = (process.getuid && (process.getuid() === 0));
+const isRoot = (process.getuid && (process.getuid() === 0));
 var port;
 if (isRoot) {
 	port = 80;
