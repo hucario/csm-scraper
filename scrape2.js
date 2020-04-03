@@ -174,8 +174,8 @@ function formatBytes(a,b){if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","
 
 
 function chopOffTail(orig,fromlast) {
-	if (!orig.toString) {
-		return "";
+	if (!orig || !orig.toString) {
+		return false;
 	}
 	return orig.toString().substring(0,orig.toString().length-fromlast); 
 }
@@ -284,34 +284,31 @@ async function scrapePage(currURL) {
 				currBook.activism = false;
 			}
 			let ageNonParsed = cheerThis('.csm-green-age').text().split(' ')[1];
-			if (!ageNonParsed) {
-				throw "ageNonParsed is undefined";
-			}
-			ageNonParsed = ageNonParsed.substring(0,ageNonParsed.length-4);
-			currBook.ageRating = Number(ageNonParsed);		
-			currBook.stars = Number(cheerThis('.ratings-small.star.field_stars_rating.csm_review')[0].attribs['class'].match(/[0-5]/)[0]);
-			currBook.desc = cheerThis('.panel-pane.pane-entity-field.pane-node-field-one-liner').text();
-			currBook.author = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.first').text();
-			currBook.authorFirstName = currBook.author.split(' ')[0];
-			currBook.authorSurname = currBook.author.split(' ')[1];
-			currBook.genre = cheerThis('.product-subtitle.csm_book>.item-list>ul>li:nth-child(2)').text();
-			currBook.releaseDate = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.last').text();
+			ageNonParsed = (""+ageNonParsed).substring(0,ageNonParsed.length-4);
+			currBook.ageRating = Number(ageNonParsed) || -1;		
+			currBook.stars = Number(cheerThis('.ratings-small.star.field_stars_rating.csm_review')[0].attribs['class'].match(/[0-5]/)[0]) || -1;
+			currBook.desc = cheerThis('.panel-pane.pane-entity-field.pane-node-field-one-liner').text() || "null";
+			currBook.author = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.first').text() || "null";
+			currBook.authorFirstName = currBook.author.split(' ')[0] || "null";
+			currBook.authorSurname = currBook.author.split(' ')[1] || "null";
+			currBook.genre = cheerThis('.product-subtitle.csm_book>.item-list>ul>li:nth-child(2)').text() || "null";
+			currBook.releaseDate = cheerThis('.product-subtitle.csm_book>.item-list>ul>li.last').text() || "null";
 		
 			if (cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text()) {
 				currBook.parentAgeRating = chopOffTail(cheerThis('.user-review-statistics.adult>.stat-wrapper.age').text().split(' ')[1],1); // age rating, according to parents
 				currBook.parentStars = Number(cheerThis('.user-review-statistics.adult>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]); // stars, according to parents		
 	
 			} else {
-				currBook.parentAgeRating = null;
-				currBook.parentStars = null;
+				currBook.parentAgeRating = "null";
+				currBook.parentStars = "null";
 			}
 			
 			if (cheerThis('.user-review-statistics.child>.stat-wrapper.age').text()) {
 				currBook.kidsAgeRating = chopOffTail(cheerThis('.user-review-statistics.child>.stat-wrapper.age').text().split(' ')[1],1);// age rating, according to kids
 				currBook.kidsStars = Number(cheerThis('.user-review-statistics.child>.ratings-small.star.field-stars-rating.csm-review')[0].attribs['class'].match(/[0-5]/)[0]);// stars, according to kids
 			} else {
-				currBook.kidsAgeRating = null;
-				currBook.kidsStars = null;
+				currBook.kidsAgeRating = "null";
+				currBook.kidsStars = "null";
 			}
 	
 			let fields = [
@@ -350,8 +347,8 @@ async function scrapePage(currURL) {
 			]
 			for (let m = 0; m < fields.length; m++) {
 				if (cheerThis('#content-grid-item-'+fields[m][0])[0]) {
-					currBook[fields[m][1]+'ValNum'] = Number(cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating > .field-items > .field-item.even > div')[0].attribs['class'].match(/[0-5]/)[0]);
-					currBook[fields[m][1]+'Desc'] = cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating-text > .field-items > .field-item.even > p').text()
+					currBook[fields[m][1]+'ValNum'] = Number(cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating > .field-items > .field-item.even > div')[0].attribs['class'].match(/[0-5]/)[0]) || -1;
+					currBook[fields[m][1]+'Desc'] = cheerThis('#content-grid-item-'+fields[m][0]+' > .entity > .content > .field-name-field-content-grid-rating-text > .field-items > .field-item.even > p').text() || "null";
 				} else {
 					currBook[fields[m][1]+'ValNum'] = -1;
 					currBook[fields[m][1]+'Desc'] = null;
@@ -364,10 +361,10 @@ async function scrapePage(currURL) {
 		}
 		try {
 			for (let b in currBook) {
-				if (currBook[b] && currBook[b].toString() === currBook[b]) {
-					currBook[b] = currBook[b].trim();
+				if ((""+currBook[b]) === currBook[b]) {
+					currBook[b] = (""+currBook[b]).trim();
 				}
-				if (currBook[b] && Number(currBook[b]) == currBook[b]) {
+				if (Number(currBook[b]) == currBook[b]) {
 					currBook[b] = Number(currBook[b]);
 				}
 			}
