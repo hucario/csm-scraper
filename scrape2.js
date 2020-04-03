@@ -52,6 +52,7 @@ io.on('connect', (socket) => {
 app.post('/update', (req, res) => {
 	let afta = req.body.after; 
 	let compareLink = req.body.compare
+	io.emit('update', afta, compareLink); // I should probably authenticate this
 });
 
 app.get('/', (req, res) => {
